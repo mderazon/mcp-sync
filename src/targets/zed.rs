@@ -26,8 +26,6 @@ impl ZedTarget {
     }
 
     /// Locate the span (start, end) of `"context_servers": { ... }` in a JSONC string.
-    /// Returns (start_index, end_index) where start is at `"context_servers"`
-    /// and end is right after the matching closing `}`.
     pub fn find_context_servers_span(content: &str) -> Option<(usize, usize)> {
         let bytes = content.as_bytes();
         let len = bytes.len();
@@ -61,7 +59,7 @@ impl ZedTarget {
 
             if in_string {
                 if bytes[i] == b'\\' {
-                    i += 2; // skip escaped character
+                    i += 2;
                     continue;
                 }
                 if bytes[i] == b'"' {
@@ -71,7 +69,6 @@ impl ZedTarget {
                 continue;
             }
 
-            // Not in string or comment
             if i + 1 < len && bytes[i] == b'/' && bytes[i + 1] == b'/' {
                 in_single_comment = true;
                 i += 2;
@@ -99,7 +96,6 @@ impl ZedTarget {
 
         let start_pos = found_key_start?;
 
-        // Find the opening `{`
         let mut brace_start = None;
         while i < len {
             if bytes[i] == b'{' {
@@ -179,14 +175,13 @@ impl ZedTarget {
         None
     }
 
-    /// Extract existing enabled states for servers in current context_servers block.
-    pub fn parse_existing_states(content: &str) -> BTreeMap<String, bool> {
+    /// Extract existing servers and their enabled states from current context_servers block.
+    pub fn parse_existing_servers(content: &str) -> (BTreeMap<String, Value>, BTreeMap<String, bool>) {
+        let mut servers_map = BTreeMap::new();
         let mut states = BTreeMap::new();
         if let Some((start, end)) = Self::find_context_servers_span(content) {
             let block = &content[start..end];
-            // Format into dummy valid JSON: { <block> }
             let wrap = format!("{{{}}}", block);
-            // Basic strip comments and trailing commas to parse safely
             let cleaned = strip_jsonc_comments(&wrap);
             if let Ok(v) = serde_json::from_str::<Value>(&cleaned)
                 && let Some(servers) = v.get("context_servers").and_then(|cs| cs.as_object())
@@ -194,19 +189,23 @@ impl ZedTarget {
                 for (name, s_val) in servers {
                     let enabled = s_val.get("enabled").and_then(|e| e.as_bool()).unwrap_or(true);
                     states.insert(name.clone(), enabled);
+                    servers_map.insert(name.clone(), s_val.clone());
                 }
             }
         }
-        states
+        (servers_map, states)
     }
 
     /// Render the `context_servers` block matching Zed's indentation style.
+    /// Safe mode: only touches canonical servers; unmanaged servers in Zed are preserved intact.
     pub fn render_context_servers(
         config: &CanonicalConfig,
+        existing_servers: &BTreeMap<String, Value>,
         existing_states: &BTreeMap<String, bool>,
     ) -> String {
         let mut entries = Vec::new();
 
+        // 1. Add/update servers defined in canonical config
         for (name, server) in &config.servers {
             let mut obj = Map::new();
 
@@ -236,11 +235,19 @@ impl ZedTarget {
                 obj.insert("settings".to_string(), settings.clone());
             }
 
-            // Pretty print object with 4-space base indentation for Zed
             let val = Value::Object(obj);
             let rendered_obj = serde_json::to_string_pretty(&val).unwrap_or_else(|_| "{}".to_string());
             let indented = reindent(&rendered_obj, "    ");
             entries.push(format!("    \"{}\": {}", name, indented));
+        }
+
+        // 2. Safe mode: preserve any unmanaged servers already in Zed
+        for (name, raw_val) in existing_servers {
+            if !config.servers.contains_key(name) {
+                let rendered_obj = serde_json::to_string_pretty(raw_val).unwrap_or_else(|_| "{}".to_string());
+                let indented = reindent(&rendered_obj, "    ");
+                entries.push(format!("    \"{}\": {}", name, indented));
+            }
         }
 
         let body = entries.join(",\n");
@@ -256,13 +263,12 @@ impl ZedTarget {
         let content = fs::read_to_string(&self.path)
             .map_err(|e| format!("Failed to read {}: {}", self.path.display(), e))?;
 
-        let existing_states = Self::parse_existing_states(&content);
-        let new_block = Self::render_context_servers(config, &existing_states);
+        let (existing_servers, existing_states) = Self::parse_existing_servers(&content);
+        let new_block = Self::render_context_servers(config, &existing_servers, &existing_states);
 
         let new_content = if let Some((start, end)) = Self::find_context_servers_span(&content) {
             format!("{}{}{}", &content[..start], new_block, &content[end..])
         } else {
-            // Insert before the last '}'
             if let Some(last_brace) = content.rfind('}') {
                 let prefix = content[..last_brace].trim_end();
                 let separator = if prefix.ends_with('{') || prefix.ends_with(',') {
@@ -287,7 +293,6 @@ impl ZedTarget {
     }
 }
 
-/// Helper to re-indent JSON text lines after line 0
 fn reindent(text: &str, prefix: &str) -> String {
     let mut out = String::new();
     for (i, line) in text.lines().enumerate() {
@@ -300,7 +305,6 @@ fn reindent(text: &str, prefix: &str) -> String {
     out
 }
 
-/// Minimal comment & trailing comma cleanup for parsing existing states
 fn strip_jsonc_comments(jsonc: &str) -> String {
     let mut out = String::with_capacity(jsonc.len());
     let bytes = jsonc.as_bytes();
@@ -349,19 +353,17 @@ fn strip_jsonc_comments(jsonc: &str) -> String {
         i += 1;
     }
 
-    // Strip trailing commas before } or ]
     let mut result = String::with_capacity(out.len());
     let chars: Vec<char> = out.chars().collect();
     let n = chars.len();
     for j in 0..n {
         if chars[j] == ',' {
-            // check next non-whitespace char
             let mut k = j + 1;
             while k < n && chars[k].is_whitespace() {
                 k += 1;
             }
             if k < n && (chars[k] == '}' || chars[k] == ']') {
-                continue; // skip trailing comma
+                continue;
             }
         }
         result.push(chars[j]);

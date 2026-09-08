@@ -106,7 +106,7 @@ fn test_vscode_servers_and_inputs_preservation() {
 
     // Verify servers block
     let servers = doc.get("servers").unwrap().as_object().unwrap();
-    assert_eq!(servers.len(), 2);
+    assert_eq!(servers.len(), 3); // 2 canonical + 1 preserved unmanaged
 
     let stdio = servers.get("stdio-tool").unwrap();
     assert_eq!(stdio.get("type").unwrap().as_str().unwrap(), "stdio");
@@ -120,4 +120,75 @@ fn test_vscode_servers_and_inputs_preservation() {
     let inputs = doc.get("inputs").unwrap().as_array().unwrap();
     assert_eq!(inputs.len(), 1);
     assert_eq!(inputs[0].get("id").unwrap().as_str().unwrap(), "my-secret-key");
+}
+
+#[test]
+fn test_safe_mode_unmanaged_server_preservation() {
+    // 1. Test Zed preserves unmanaged server
+    let mut tmp_zed = NamedTempFile::new().unwrap();
+    let zed_initial = r#"{
+  "context_servers": {
+    "managed-tool": {
+      "enabled": true,
+      "url": "https://managed.com"
+    },
+    "local-only-zed-tool": {
+      "enabled": true,
+      "command": "custom-cli",
+      "args": ["--local"]
+    }
+  }
+}"#;
+    tmp_zed.write_all(zed_initial.as_bytes()).unwrap();
+    tmp_zed.flush().unwrap();
+
+    let zed_target = mcp_sync::targets::ZedTarget::new(Some(tmp_zed.path().to_path_buf()));
+    let canonical = r#"{
+        "servers": {
+            "managed-tool": {
+                "url": "https://updated-managed.com"
+            }
+        }
+    }"#;
+    let config = parse_canonical_str(canonical).unwrap();
+    zed_target.sync(&config, false).unwrap();
+
+    let zed_updated = std::fs::read_to_string(tmp_zed.path()).unwrap();
+    assert!(zed_updated.contains("\"local-only-zed-tool\""), "Unmanaged tool in Zed must be preserved");
+    assert!(zed_updated.contains("https://updated-managed.com"));
+
+    // 2. Test VSCode preserves unmanaged server
+    let mut tmp_vscode = NamedTempFile::new().unwrap();
+    let vscode_initial = r#"{
+  "servers": {
+    "managed-tool": { "type": "http", "url": "https://managed.com" },
+    "local-vscode-tool": { "type": "stdio", "command": "vscode-tool" }
+  },
+  "inputs": []
+}"#;
+    tmp_vscode.write_all(vscode_initial.as_bytes()).unwrap();
+    tmp_vscode.flush().unwrap();
+
+    let vscode_target = VSCodeTarget::new(Some(tmp_vscode.path().to_path_buf()));
+    vscode_target.sync(&config, false).unwrap();
+
+    let vscode_updated = std::fs::read_to_string(tmp_vscode.path()).unwrap();
+    assert!(vscode_updated.contains("\"local-vscode-tool\""), "Unmanaged tool in VSCode must be preserved");
+
+    // 3. Test Antigravity preserves unmanaged server
+    let mut tmp_ag = NamedTempFile::new().unwrap();
+    let ag_initial = r#"{
+  "mcpServers": {
+    "managed-tool": { "serverUrl": "https://managed.com" },
+    "local-ag-tool": { "command": "ag-tool" }
+  }
+}"#;
+    tmp_ag.write_all(ag_initial.as_bytes()).unwrap();
+    tmp_ag.flush().unwrap();
+
+    let ag_target = AntigravityTarget::new(Some(tmp_ag.path().to_path_buf()));
+    ag_target.sync(&config, false).unwrap();
+
+    let ag_updated = std::fs::read_to_string(tmp_ag.path()).unwrap();
+    assert!(ag_updated.contains("\"local-ag-tool\""), "Unmanaged tool in Antigravity must be preserved");
 }

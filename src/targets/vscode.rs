@@ -25,9 +25,11 @@ impl VSCodeTarget {
     }
 
     /// Build the full mcp.json document for VSCode
+    /// Safe mode: only touches canonical servers; unmanaged servers in VSCode are preserved intact.
     pub fn build_doc(&self, config: &CanonicalConfig) -> Value {
         let mut servers_map = Map::new();
 
+        // 1. Add/update servers defined in canonical config
         for (name, server) in &config.servers {
             let mut obj = Map::new();
 
@@ -52,15 +54,22 @@ impl VSCodeTarget {
             servers_map.insert(name.clone(), Value::Object(obj));
         }
 
-        // Read existing inputs if present in current mcp.json
+        // 2. Safe mode: preserve any unmanaged servers already in VSCode
         let mut inputs_val = config.inputs.clone();
-        if inputs_val.is_none()
-            && self.path.exists()
+        if self.path.exists()
             && let Ok(text) = fs::read_to_string(&self.path)
             && let Ok(existing_json) = serde_json::from_str::<Value>(&text)
-            && let Some(existing_inputs) = existing_json.get("inputs")
         {
-            inputs_val = Some(existing_inputs.clone());
+            if let Some(existing_servers) = existing_json.get("servers").and_then(|s| s.as_object()) {
+                for (name, s_val) in existing_servers {
+                    if !config.servers.contains_key(name) {
+                        servers_map.insert(name.clone(), s_val.clone());
+                    }
+                }
+            }
+            if inputs_val.is_none() && let Some(existing_inputs) = existing_json.get("inputs") {
+                inputs_val = Some(existing_inputs.clone());
+            }
         }
 
         let mut root = Map::new();

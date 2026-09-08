@@ -24,8 +24,9 @@ impl AntigravityTarget {
         &self.path
     }
 
-    /// Read existing disabled server names from ~/.gemini/config/mcp_config.json
-    pub fn parse_existing_disabled_states(&self) -> BTreeMap<String, bool> {
+    /// Read existing servers and disabled states from ~/.gemini/config/mcp_config.json
+    pub fn parse_existing(&self) -> (BTreeMap<String, Value>, BTreeMap<String, bool>) {
+        let mut servers_map = BTreeMap::new();
         let mut states = BTreeMap::new();
         if self.path.exists()
             && let Ok(content) = fs::read_to_string(&self.path)
@@ -38,21 +39,23 @@ impl AntigravityTarget {
                     .and_then(|d| d.as_bool())
                     .unwrap_or(false);
                 states.insert(name.clone(), is_disabled);
+                servers_map.insert(name.clone(), s_val.clone());
             }
         }
-        states
+        (servers_map, states)
     }
 
     /// Build the mcpServers JSON document for Antigravity
+    /// Safe mode: only touches canonical servers; unmanaged servers in Antigravity are preserved intact.
     pub fn build_doc(&self, config: &CanonicalConfig) -> Value {
-        let existing_disabled = self.parse_existing_disabled_states();
+        let (existing_servers, existing_disabled) = self.parse_existing();
         let mut servers_map = Map::new();
 
+        // 1. Add/update servers defined in canonical config
         for (name, server) in &config.servers {
             let mut obj = Map::new();
 
             if let Some(url) = server.get_url() {
-                // Antigravity's native remote key is serverUrl
                 obj.insert("serverUrl".to_string(), Value::String(url.to_string()));
             } else {
                 if let Some(ref cmd) = server.command {
@@ -83,6 +86,13 @@ impl AntigravityTarget {
             }
 
             servers_map.insert(name.clone(), Value::Object(obj));
+        }
+
+        // 2. Safe mode: preserve any unmanaged servers already in Antigravity
+        for (name, raw_val) in existing_servers {
+            if !config.servers.contains_key(&name) {
+                servers_map.insert(name, raw_val);
+            }
         }
 
         let mut root = Map::new();
