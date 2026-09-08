@@ -257,3 +257,90 @@ fn test_opencode_target_generation_and_safe_mode() {
     assert_eq!(http.get("url").unwrap().as_str().unwrap(), "https://api.example.com/mcp");
     assert_eq!(http.get("enabled").unwrap().as_bool().unwrap(), true);
 }
+
+#[test]
+fn test_codex_target_generation_and_safe_mode() {
+    let mut tmp = NamedTempFile::new().unwrap();
+    let initial_content = r#"model = "gpt-6"
+personality = "pragmatic"
+
+[mcp_servers.disabled-srv]
+command = "npx"
+args = ["-y", "disabled-pkg"]
+enabled = false
+
+[mcp_servers.unmanaged-internal]
+command = "/usr/lib/internal_repl"
+args = []
+
+[projects."/home/michael/my-project"]
+trust_level = "trusted"
+"#;
+    tmp.write_all(initial_content.as_bytes()).unwrap();
+    tmp.flush().unwrap();
+
+    let target = mcp_sync::targets::CodexTarget::new(Some(tmp.path().to_path_buf()));
+
+    let canonical = r#"{
+        "servers": {
+            "disabled-srv": {
+                "command": "npx",
+                "args": ["-y", "updated-disabled-pkg"]
+            },
+            "new-stdio": {
+                "command": "python",
+                "args": ["server.py"],
+                "env": { "PORT": "8080" }
+            },
+            "new-remote": {
+                "url": "https://mcp.remote.com",
+                "headers": { "X-Api-Key": "secret123" }
+            }
+        }
+    }"#;
+
+    let config = parse_canonical_str(canonical).unwrap();
+    target.sync(&config, false).unwrap();
+
+    let updated = std::fs::read_to_string(tmp.path()).unwrap();
+    let doc: toml_edit::DocumentMut = updated.parse().unwrap();
+
+    // Top-level keys preserved
+    assert_eq!(doc["model"].as_str(), Some("gpt-6"));
+    assert_eq!(doc["personality"].as_str(), Some("pragmatic"));
+
+    // Other tables preserved
+    assert!(doc.contains_key("projects"));
+
+    let mcp = doc["mcp_servers"].as_table().unwrap();
+
+    // Unmanaged server preserved
+    assert!(mcp.contains_key("unmanaged-internal"));
+    assert_eq!(
+        mcp["unmanaged-internal"]["command"].as_str(),
+        Some("/usr/lib/internal_repl")
+    );
+
+    // Smart merge: disabled-srv remains disabled
+    let disabled_srv = &mcp["disabled-srv"];
+    assert_eq!(disabled_srv["enabled"].as_bool(), Some(false));
+    assert_eq!(
+        disabled_srv["args"].as_array().unwrap().get(1).unwrap().as_str(),
+        Some("updated-disabled-pkg")
+    );
+
+    // New stdio server formatted correctly
+    let new_stdio = &mcp["new-stdio"];
+    assert_eq!(new_stdio["command"].as_str(), Some("python"));
+    assert!(new_stdio.get("enabled").is_none());
+    assert_eq!(new_stdio["env"]["PORT"].as_str(), Some("8080"));
+
+    // New remote server formatted correctly
+    let new_remote = &mcp["new-remote"];
+    assert_eq!(new_remote["url"].as_str(), Some("https://mcp.remote.com"));
+    assert_eq!(
+        new_remote["http_headers"]["X-Api-Key"].as_str(),
+        Some("secret123")
+    );
+}
+

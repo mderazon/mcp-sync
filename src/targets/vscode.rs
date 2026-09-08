@@ -37,6 +37,9 @@ impl VSCodeTarget {
                 let stype = server.server_type.as_deref().unwrap_or("http");
                 obj.insert("type".to_string(), Value::String(stype.to_string()));
                 obj.insert("url".to_string(), Value::String(url.to_string()));
+                if let Some(headers) = server.get_headers() {
+                    obj.insert("headers".to_string(), serde_json::to_value(headers).unwrap());
+                }
             } else {
                 let stype = server.server_type.as_deref().unwrap_or("stdio");
                 obj.insert("type".to_string(), Value::String(stype.to_string()));

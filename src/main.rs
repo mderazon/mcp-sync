@@ -107,7 +107,7 @@ USAGE:
 OPTIONS:
     -w, --watch              Watch canonical config for changes and sync automatically
     -n, --dry-run            Show what would be modified without writing files
-    -t, --target <TARGETS>   Comma-separated targets: zed, vscode, antigravity, opencode (default: all)
+    -t, --target <TARGETS>   Comma-separated targets: zed, vscode, antigravity, opencode, codex (default: all)
     -c, --config <PATH>      Path to canonical config (default: ~/.config/mcp/servers.json)
     -l, --log-file <PATH>    Path to log file (default: ~/.local/state/mcp-sync/mcp-sync.log)
     -q, --quiet              Suppress stdout logging (errors still written to stderr)
@@ -119,6 +119,7 @@ TARGETS:
     vscode       -> ~/.config/Code/User/mcp.json (servers)
     antigravity  -> ~/.gemini/config/mcp_config.json (mcpServers)
     opencode     -> ~/.config/opencode/opencode.json (mcp)
+    codex        -> ~/.codex/config.toml (mcp_servers)
 "#
     );
 }

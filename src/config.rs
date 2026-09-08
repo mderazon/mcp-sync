@@ -29,12 +29,26 @@ pub struct ServerDefinition {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enabled: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub headers: Option<BTreeMap<String, String>>,
+
+    #[serde(rename = "http_headers", skip_serializing_if = "Option::is_none")]
+    pub http_headers: Option<BTreeMap<String, String>>,
+
+    #[serde(rename = "env_vars", skip_serializing_if = "Option::is_none")]
+    pub env_vars: Option<Vec<String>>,
 }
 
 impl ServerDefinition {
     /// Return effective URL if this is a remote server
     pub fn get_url(&self) -> Option<&str> {
         self.url.as_deref().or(self.server_url.as_deref())
+    }
+
+    /// Return HTTP headers if configured
+    pub fn get_headers(&self) -> Option<&BTreeMap<String, String>> {
+        self.headers.as_ref().or(self.http_headers.as_ref())
     }
 
     /// True if server is configured as a remote URL endpoint

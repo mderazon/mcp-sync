@@ -65,6 +65,9 @@ impl OpenCodeTarget {
             if let Some(url) = server.get_url() {
                 obj.insert("type".to_string(), Value::String("remote".to_string()));
                 obj.insert("url".to_string(), Value::String(url.to_string()));
+                if let Some(headers) = server.get_headers() {
+                    obj.insert("headers".to_string(), serde_json::to_value(headers).unwrap());
+                }
                 if let Some(ref env) = server.env {
                     obj.insert("environment".to_string(), serde_json::to_value(env).unwrap());
                 }
