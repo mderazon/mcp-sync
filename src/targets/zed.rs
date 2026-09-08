@@ -371,3 +371,13 @@ fn strip_jsonc_comments(jsonc: &str) -> String {
 
     result
 }
+
+impl super::Target for ZedTarget {
+    fn name(&self) -> &'static str {
+        "zed"
+    }
+
+    fn sync(&self, config: &CanonicalConfig, dry_run: bool) -> Result<String, String> {
+        self.sync(config, dry_run)
+    }
+}

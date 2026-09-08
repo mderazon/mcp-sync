@@ -98,3 +98,13 @@ impl VSCodeTarget {
         Ok(format!("[vscode] Updated {}", self.path.display()))
     }
 }
+
+impl super::Target for VSCodeTarget {
+    fn name(&self) -> &'static str {
+        "vscode"
+    }
+
+    fn sync(&self, config: &CanonicalConfig, dry_run: bool) -> Result<String, String> {
+        self.sync(config, dry_run)
+    }
+}

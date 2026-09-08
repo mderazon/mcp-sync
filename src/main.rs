@@ -4,7 +4,7 @@ use std::process::exit;
 
 use mcp_sync::config::{load_canonical, resolve_canonical_path};
 use mcp_sync::logger::Logger;
-use mcp_sync::targets::sync_all;
+use mcp_sync::targets::{available_targets, sync_all};
 use mcp_sync::watcher::watch_and_sync;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -27,6 +27,11 @@ impl CliArgs {
         let mut config_path = None;
         let mut log_path = None;
         let mut quiet = false;
+
+        let valid_names: Vec<&'static str> = available_targets()
+            .iter()
+            .map(|t| t.name())
+            .collect();
 
         while let Some(arg) = args.next() {
             match arg.as_str() {
@@ -69,12 +74,13 @@ impl CliArgs {
             }
         }
 
-        // Validate targets if specified
+        // Validate targets dynamically from registered pluggable targets
         for t in &targets {
-            if t != "zed" && t != "vscode" && t != "antigravity" {
+            if !valid_names.contains(&t.as_str()) {
                 return Err(format!(
-                    "Invalid target '{}'. Valid targets are: zed, vscode, antigravity",
-                    t
+                    "Invalid target '{}'. Valid targets are: {}",
+                    t,
+                    valid_names.join(", ")
                 ));
             }
         }
@@ -93,7 +99,7 @@ impl CliArgs {
 fn print_help() {
     println!(
         r#"mcp-sync {VERSION}
-Synchronize MCP server configurations from a single source of truth to Zed, VSCode, and Antigravity.
+Synchronize MCP server configurations from a single source of truth across AI coding clients.
 
 USAGE:
     mcp-sync [OPTIONS]
@@ -101,7 +107,7 @@ USAGE:
 OPTIONS:
     -w, --watch              Watch canonical config for changes and sync automatically
     -n, --dry-run            Show what would be modified without writing files
-    -t, --target <TARGETS>   Comma-separated targets: zed, vscode, antigravity (default: all)
+    -t, --target <TARGETS>   Comma-separated targets: zed, vscode, antigravity, opencode (default: all)
     -c, --config <PATH>      Path to canonical config (default: ~/.config/mcp/servers.json)
     -l, --log-file <PATH>    Path to log file (default: ~/.local/state/mcp-sync/mcp-sync.log)
     -q, --quiet              Suppress stdout logging (errors still written to stderr)
@@ -112,6 +118,7 @@ TARGETS:
     zed          -> ~/.config/zed/settings.json (context_servers)
     vscode       -> ~/.config/Code/User/mcp.json (servers)
     antigravity  -> ~/.gemini/config/mcp_config.json (mcpServers)
+    opencode     -> ~/.config/opencode/opencode.json (mcp)
 "#
     );
 }

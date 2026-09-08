@@ -117,3 +117,13 @@ impl AntigravityTarget {
         Ok(format!("[antigravity] Updated {}", self.path.display()))
     }
 }
+
+impl super::Target for AntigravityTarget {
+    fn name(&self) -> &'static str {
+        "antigravity"
+    }
+
+    fn sync(&self, config: &CanonicalConfig, dry_run: bool) -> Result<String, String> {
+        self.sync(config, dry_run)
+    }
+}

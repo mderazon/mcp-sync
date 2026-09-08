@@ -1,3 +1,4 @@
+use mcp_sync::Target;
 use mcp_sync::config::parse_canonical_str;
 use mcp_sync::targets::{AntigravityTarget, VSCodeTarget};
 use tempfile::NamedTempFile;
@@ -191,4 +192,68 @@ fn test_safe_mode_unmanaged_server_preservation() {
 
     let ag_updated = std::fs::read_to_string(tmp_ag.path()).unwrap();
     assert!(ag_updated.contains("\"local-ag-tool\""), "Unmanaged tool in Antigravity must be preserved");
+}
+
+#[test]
+fn test_opencode_target_generation_and_safe_mode() {
+    let mut tmp = NamedTempFile::new().unwrap();
+    let initial_content = r#"{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "local-only": {
+      "type": "local",
+      "enabled": false,
+      "command": ["custom-tool", "--flag"]
+    }
+  }
+}"#;
+    tmp.write_all(initial_content.as_bytes()).unwrap();
+    tmp.flush().unwrap();
+
+    let target = mcp_sync::targets::OpenCodeTarget::new(Some(tmp.path().to_path_buf()));
+
+    let canonical = r#"{
+        "servers": {
+            "stdio-tool": {
+                "command": "npx",
+                "args": ["-y", "pkg"],
+                "env": { "FOO": "bar" }
+            },
+            "http-tool": {
+                "url": "https://api.example.com/mcp"
+            }
+        }
+    }"#;
+
+    let config = parse_canonical_str(canonical).unwrap();
+    target.sync(&config, false).unwrap();
+
+    let updated = std::fs::read_to_string(tmp.path()).unwrap();
+    let doc: serde_json::Value = serde_json::from_str(&updated).unwrap();
+
+    // Verify $schema preserved
+    assert_eq!(doc.get("$schema").unwrap().as_str().unwrap(), "https://opencode.ai/config.json");
+
+    let mcp = doc.get("mcp").unwrap().as_object().unwrap();
+
+    // Safe mode: local-only preserved
+    assert!(mcp.contains_key("local-only"));
+    let local_only = mcp.get("local-only").unwrap();
+    assert_eq!(local_only.get("enabled").unwrap().as_bool().unwrap(), false);
+
+    // Stdio tool formatted correctly
+    let stdio = mcp.get("stdio-tool").unwrap();
+    assert_eq!(stdio.get("type").unwrap().as_str().unwrap(), "local");
+    assert_eq!(
+        stdio.get("command").unwrap().as_array().unwrap(),
+        &vec![serde_json::Value::String("npx".into()), serde_json::Value::String("-y".into()), serde_json::Value::String("pkg".into())]
+    );
+    assert_eq!(stdio.get("environment").unwrap().get("FOO").unwrap().as_str().unwrap(), "bar");
+    assert_eq!(stdio.get("enabled").unwrap().as_bool().unwrap(), true);
+
+    // HTTP tool formatted correctly
+    let http = mcp.get("http-tool").unwrap();
+    assert_eq!(http.get("type").unwrap().as_str().unwrap(), "remote");
+    assert_eq!(http.get("url").unwrap().as_str().unwrap(), "https://api.example.com/mcp");
+    assert_eq!(http.get("enabled").unwrap().as_bool().unwrap(), true);
 }

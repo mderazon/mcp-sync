@@ -1,6 +1,6 @@
 # mcp-sync
 
-Single source of truth for MCP server configurations across **Zed**, **VSCode**, and **Antigravity**.
+Single source of truth for MCP server configurations across **Zed**, **VSCode**, **Antigravity**, and **OpenCode**.
 
 ## The Problem
 
@@ -11,8 +11,9 @@ Different AI editors and assistants use different JSON schemas for the exact sam
 | **Zed** | `~/.config/zed/settings.json` | `context_servers` | `url` | JSONC with comments, per-server `settings` |
 | **VSCode** | `~/.config/Code/User/mcp.json` | `servers` | `url` | Requires explicit `type: "stdio" \| "http"` |
 | **Antigravity** | `~/.gemini/config/mcp_config.json` | `mcpServers` | `serverUrl` | Native `serverUrl`, supports `disabled: true` |
+| **OpenCode** | `~/.config/opencode/opencode.json` | `mcp` | `url` | Uses `command` array & `environment` object |
 
-`mcp-sync` reads a single canonical config (`~/.config/mcp/servers.json`) and generates the native configs for all three targets.
+`mcp-sync` reads a single canonical config (`~/.config/mcp/servers.json`) and generates the native configs for all targets.
 
 ## Features
 
@@ -73,7 +74,7 @@ mcp-sync
 mcp-sync --dry-run
 
 # Sync specific targets only
-mcp-sync --target zed,antigravity
+mcp-sync --target zed,opencode
 
 # Continuous watch mode
 mcp-sync --watch
@@ -86,7 +87,7 @@ mcp-sync --quiet
 
 - `-w, --watch`: Watch `~/.config/mcp/` directory for changes and re-sync automatically.
 - `-n, --dry-run`: Preview changes without modifying target files.
-- `-t, --target <list>`: Comma-separated target subset (`zed`, `vscode`, `antigravity`).
+- `-t, --target <list>`: Comma-separated target subset (`zed`, `vscode`, `antigravity`, `opencode`).
 - `-c, --config <path>`: Custom canonical config path (default: `~/.config/mcp/servers.json`).
 - `-l, --log-file <path>`: Custom log path (default: `~/.local/state/mcp-sync/mcp-sync.log`).
 - `-q, --quiet`: Suppress stdout (errors still logged to stderr and file).
