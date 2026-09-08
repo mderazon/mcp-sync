@@ -9,8 +9,24 @@ permissions:
   contents: write
 
 jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create Release Entry
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build-release:
     name: Build (${{ matrix.target }})
+    needs: [create-release]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -23,7 +39,7 @@ jobs:
             os: ubuntu-24.04-arm
             asset_name: mcp-sync-aarch64-unknown-linux-gnu.tar.gz
           - target: x86_64-apple-darwin
-            os: macos-13
+            os: macos-latest
             asset_name: mcp-sync-x86_64-apple-darwin.tar.gz
           - target: aarch64-apple-darwin
             os: macos-latest
@@ -60,32 +76,11 @@ jobs:
             LICENSE README.md
           powershell -Command "Get-FileHash -Algorithm SHA256 '${{ matrix.asset_name }}' | ForEach-Object { \$_.Hash.ToLower() + '  ${{ matrix.asset_name }}' }" > "${{ matrix.asset_name }}.sha256"
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-${{ matrix.target }}
-          path: |
-            ${{ matrix.asset_name }}
-            ${{ matrix.asset_name }}.sha256
-
-  publish:
-    name: Publish GitHub Release
-    needs: [build-release]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: release-*
-          merge-multiple: true
-          path: dist
-
-      - name: Create Release
+      - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
-          generate_release_notes: true
+          files: |
+            ${{ matrix.asset_name }}
+            ${{ matrix.asset_name }}.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
