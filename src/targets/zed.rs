@@ -1,7 +1,7 @@
+use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use serde_json::{Map, Value};
 
 use crate::config::CanonicalConfig;
 use crate::fs_utils::atomic_write;
@@ -13,8 +13,34 @@ pub struct ZedTarget {
 impl ZedTarget {
     pub fn new(path: Option<PathBuf>) -> Self {
         let p = path.unwrap_or_else(|| {
+            if let Some(config_dir) = dirs::config_dir() {
+                let candidates = [
+                    config_dir.join("zed/settings.json"),
+                    config_dir.join("Zed/settings.json"),
+                ];
+                for c in &candidates {
+                    if c.exists() {
+                        return c.clone();
+                    }
+                }
+            }
+            if let Some(home) = dirs::home_dir() {
+                let c = home.join(".config/zed/settings.json");
+                if c.exists() {
+                    return c;
+                }
+            }
             dirs::config_dir()
-                .map(|d| d.join("zed/settings.json"))
+                .map(|d| {
+                    #[cfg(target_os = "macos")]
+                    {
+                        d.join("Zed/settings.json")
+                    }
+                    #[cfg(not(target_os = "macos"))]
+                    {
+                        d.join("zed/settings.json")
+                    }
+                })
                 .or_else(|| dirs::home_dir().map(|h| h.join(".config/zed/settings.json")))
                 .unwrap_or_else(|| PathBuf::from(".config/zed/settings.json"))
         });
@@ -176,7 +202,9 @@ impl ZedTarget {
     }
 
     /// Extract existing servers and their enabled states from current context_servers block.
-    pub fn parse_existing_servers(content: &str) -> (BTreeMap<String, Value>, BTreeMap<String, bool>) {
+    pub fn parse_existing_servers(
+        content: &str,
+    ) -> (BTreeMap<String, Value>, BTreeMap<String, bool>) {
         let mut servers_map = BTreeMap::new();
         let mut states = BTreeMap::new();
         if let Some((start, end)) = Self::find_context_servers_span(content) {
@@ -187,7 +215,10 @@ impl ZedTarget {
                 && let Some(servers) = v.get("context_servers").and_then(|cs| cs.as_object())
             {
                 for (name, s_val) in servers {
-                    let enabled = s_val.get("enabled").and_then(|e| e.as_bool()).unwrap_or(true);
+                    let enabled = s_val
+                        .get("enabled")
+                        .and_then(|e| e.as_bool())
+                        .unwrap_or(true);
                     states.insert(name.clone(), enabled);
                     servers_map.insert(name.clone(), s_val.clone());
                 }
@@ -236,7 +267,8 @@ impl ZedTarget {
             }
 
             let val = Value::Object(obj);
-            let rendered_obj = serde_json::to_string_pretty(&val).unwrap_or_else(|_| "{}".to_string());
+            let rendered_obj =
+                serde_json::to_string_pretty(&val).unwrap_or_else(|_| "{}".to_string());
             let indented = reindent(&rendered_obj, "    ");
             entries.push(format!("    \"{}\": {}", name, indented));
         }
@@ -244,7 +276,8 @@ impl ZedTarget {
         // 2. Safe mode: preserve any unmanaged servers already in Zed
         for (name, raw_val) in existing_servers {
             if !config.servers.contains_key(name) {
-                let rendered_obj = serde_json::to_string_pretty(raw_val).unwrap_or_else(|_| "{}".to_string());
+                let rendered_obj =
+                    serde_json::to_string_pretty(raw_val).unwrap_or_else(|_| "{}".to_string());
                 let indented = reindent(&rendered_obj, "    ");
                 entries.push(format!("    \"{}\": {}", name, indented));
             }
@@ -257,7 +290,10 @@ impl ZedTarget {
     /// Sync the canonical config into Zed's settings.json
     pub fn sync(&self, config: &CanonicalConfig, dry_run: bool) -> Result<String, String> {
         if !self.path.exists() {
-            return Err(format!("Zed settings file not found at {}", self.path.display()));
+            return Err(format!(
+                "Zed settings file not found at {}",
+                self.path.display()
+            ));
         }
 
         let content = fs::read_to_string(&self.path)
@@ -268,18 +304,16 @@ impl ZedTarget {
 
         let new_content = if let Some((start, end)) = Self::find_context_servers_span(&content) {
             format!("{}{}{}", &content[..start], new_block, &content[end..])
-        } else {
-            if let Some(last_brace) = content.rfind('}') {
-                let prefix = content[..last_brace].trim_end();
-                let separator = if prefix.ends_with('{') || prefix.ends_with(',') {
-                    "\n  "
-                } else {
-                    ",\n  "
-                };
-                format!("{}{}{}\n}}\n", prefix, separator, new_block)
+        } else if let Some(last_brace) = content.rfind('}') {
+            let prefix = content[..last_brace].trim_end();
+            let separator = if prefix.ends_with('{') || prefix.ends_with(',') {
+                "\n  "
             } else {
-                return Err(format!("Invalid JSON in {}", self.path.display()));
-            }
+                ",\n  "
+            };
+            format!("{}{}{}\n}}\n", prefix, separator, new_block)
+        } else {
+            return Err(format!("Invalid JSON in {}", self.path.display()));
         };
 
         if dry_run {

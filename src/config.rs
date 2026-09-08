@@ -1,8 +1,8 @@
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ServerDefinition {
@@ -92,14 +92,25 @@ pub fn resolve_canonical_path(custom_path: Option<&Path>) -> Result<PathBuf, Str
         }
     }
 
+    // On macOS, dirs::config_dir() is ~/Library/Application Support, but users also frequently use ~/.config/mcp
+    if let Some(home) = dirs::home_dir() {
+        let home_mcp = home.join(".config/mcp");
+        for name in &["servers.json", "config.json", "mcp.json"] {
+            let candidate = home_mcp.join(name);
+            if candidate.exists() {
+                return Ok(candidate);
+            }
+        }
+    }
+
     // Default to servers.json even if not existing yet
     Ok(candidates[0].clone())
 }
 
 /// Parse canonical config from string
 pub fn parse_canonical_str(content: &str) -> Result<CanonicalConfig, String> {
-    let root: Value = serde_json::from_str(content)
-        .map_err(|e| format!("Failed to parse JSON: {}", e))?;
+    let root: Value =
+        serde_json::from_str(content).map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
     let root_obj = root
         .as_object()
@@ -108,10 +119,13 @@ pub fn parse_canonical_str(content: &str) -> Result<CanonicalConfig, String> {
     let servers_val = root_obj
         .get("servers")
         .or_else(|| root_obj.get("mcpServers"))
-        .ok_or_else(|| "Config file must contain either \"servers\" or \"mcpServers\"".to_string())?;
+        .ok_or_else(|| {
+            "Config file must contain either \"servers\" or \"mcpServers\"".to_string()
+        })?;
 
-    let servers: BTreeMap<String, ServerDefinition> = serde_json::from_value(servers_val.clone())
-        .map_err(|e| format!("Invalid server definitions: {}", e))?;
+    let servers: BTreeMap<String, ServerDefinition> =
+        serde_json::from_value(servers_val.clone())
+            .map_err(|e| format!("Invalid server definitions: {}", e))?;
 
     let inputs = root_obj.get("inputs").cloned();
 

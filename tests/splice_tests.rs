@@ -1,7 +1,7 @@
 use mcp_sync::config::parse_canonical_str;
 use mcp_sync::targets::ZedTarget;
-use tempfile::NamedTempFile;
 use std::io::Write;
+use tempfile::NamedTempFile;
 
 #[test]
 fn test_find_context_servers_span_clean() {

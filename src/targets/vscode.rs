@@ -1,6 +1,6 @@
+use serde_json::{Map, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
-use serde_json::{Map, Value};
 
 use crate::config::CanonicalConfig;
 use crate::fs_utils::atomic_write;
@@ -12,6 +12,18 @@ pub struct VSCodeTarget {
 impl VSCodeTarget {
     pub fn new(path: Option<PathBuf>) -> Self {
         let p = path.unwrap_or_else(|| {
+            if let Some(config_dir) = dirs::config_dir() {
+                let candidate = config_dir.join("Code/User/mcp.json");
+                if candidate.exists() {
+                    return candidate;
+                }
+            }
+            if let Some(home) = dirs::home_dir() {
+                let candidate = home.join(".config/Code/User/mcp.json");
+                if candidate.exists() {
+                    return candidate;
+                }
+            }
             dirs::config_dir()
                 .map(|d| d.join("Code/User/mcp.json"))
                 .or_else(|| dirs::home_dir().map(|h| h.join(".config/Code/User/mcp.json")))
@@ -38,7 +50,10 @@ impl VSCodeTarget {
                 obj.insert("type".to_string(), Value::String(stype.to_string()));
                 obj.insert("url".to_string(), Value::String(url.to_string()));
                 if let Some(headers) = server.get_headers() {
-                    obj.insert("headers".to_string(), serde_json::to_value(headers).unwrap());
+                    obj.insert(
+                        "headers".to_string(),
+                        serde_json::to_value(headers).unwrap(),
+                    );
                 }
             } else {
                 let stype = server.server_type.as_deref().unwrap_or("stdio");
@@ -63,14 +78,17 @@ impl VSCodeTarget {
             && let Ok(text) = fs::read_to_string(&self.path)
             && let Ok(existing_json) = serde_json::from_str::<Value>(&text)
         {
-            if let Some(existing_servers) = existing_json.get("servers").and_then(|s| s.as_object()) {
+            if let Some(existing_servers) = existing_json.get("servers").and_then(|s| s.as_object())
+            {
                 for (name, s_val) in existing_servers {
                     if !config.servers.contains_key(name) {
                         servers_map.insert(name.clone(), s_val.clone());
                     }
                 }
             }
-            if inputs_val.is_none() && let Some(existing_inputs) = existing_json.get("inputs") {
+            if inputs_val.is_none()
+                && let Some(existing_inputs) = existing_json.get("inputs")
+            {
                 inputs_val = Some(existing_inputs.clone());
             }
         }

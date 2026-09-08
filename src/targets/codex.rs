@@ -3,9 +3,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use toml_edit::{Array, DocumentMut, Item, Table, Value};
 
+use super::Target;
 use crate::config::CanonicalConfig;
 use crate::fs_utils::atomic_write;
-use super::Target;
 
 pub struct CodexTarget {
     path: PathBuf,

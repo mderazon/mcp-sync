@@ -1,8 +1,8 @@
 use mcp_sync::Target;
 use mcp_sync::config::parse_canonical_str;
 use mcp_sync::targets::{AntigravityTarget, VSCodeTarget};
-use tempfile::NamedTempFile;
 use std::io::Write;
+use tempfile::NamedTempFile;
 
 #[test]
 fn test_antigravity_disabled_state_preservation() {
@@ -50,8 +50,16 @@ fn test_antigravity_disabled_state_preservation() {
 
     // server-disabled still has disabled: true
     let s_disabled = servers.get("server-disabled").unwrap();
-    assert_eq!(s_disabled.get("disabled").and_then(|d| d.as_bool()), Some(true));
-    assert_eq!(s_disabled.get("args").unwrap().as_array().unwrap()[0].as_str().unwrap(), "updated.js");
+    assert_eq!(
+        s_disabled.get("disabled").and_then(|d| d.as_bool()),
+        Some(true)
+    );
+    assert_eq!(
+        s_disabled.get("args").unwrap().as_array().unwrap()[0]
+            .as_str()
+            .unwrap(),
+        "updated.js"
+    );
 
     // server-active has no disabled flag
     let s_active = servers.get("server-active").unwrap();
@@ -59,7 +67,10 @@ fn test_antigravity_disabled_state_preservation() {
 
     // server-new has serverUrl
     let s_new = servers.get("server-new").unwrap();
-    assert_eq!(s_new.get("serverUrl").unwrap().as_str().unwrap(), "https://remote.example.com/sse");
+    assert_eq!(
+        s_new.get("serverUrl").unwrap().as_str().unwrap(),
+        "https://remote.example.com/sse"
+    );
     assert!(s_new.get("disabled").is_none());
 }
 
@@ -115,12 +126,18 @@ fn test_vscode_servers_and_inputs_preservation() {
 
     let http = servers.get("http-tool").unwrap();
     assert_eq!(http.get("type").unwrap().as_str().unwrap(), "http");
-    assert_eq!(http.get("url").unwrap().as_str().unwrap(), "https://example.com/mcp");
+    assert_eq!(
+        http.get("url").unwrap().as_str().unwrap(),
+        "https://example.com/mcp"
+    );
 
     // Verify inputs preserved
     let inputs = doc.get("inputs").unwrap().as_array().unwrap();
     assert_eq!(inputs.len(), 1);
-    assert_eq!(inputs[0].get("id").unwrap().as_str().unwrap(), "my-secret-key");
+    assert_eq!(
+        inputs[0].get("id").unwrap().as_str().unwrap(),
+        "my-secret-key"
+    );
 }
 
 #[test]
@@ -155,7 +172,10 @@ fn test_safe_mode_unmanaged_server_preservation() {
     zed_target.sync(&config, false).unwrap();
 
     let zed_updated = std::fs::read_to_string(tmp_zed.path()).unwrap();
-    assert!(zed_updated.contains("\"local-only-zed-tool\""), "Unmanaged tool in Zed must be preserved");
+    assert!(
+        zed_updated.contains("\"local-only-zed-tool\""),
+        "Unmanaged tool in Zed must be preserved"
+    );
     assert!(zed_updated.contains("https://updated-managed.com"));
 
     // 2. Test VSCode preserves unmanaged server
@@ -174,7 +194,10 @@ fn test_safe_mode_unmanaged_server_preservation() {
     vscode_target.sync(&config, false).unwrap();
 
     let vscode_updated = std::fs::read_to_string(tmp_vscode.path()).unwrap();
-    assert!(vscode_updated.contains("\"local-vscode-tool\""), "Unmanaged tool in VSCode must be preserved");
+    assert!(
+        vscode_updated.contains("\"local-vscode-tool\""),
+        "Unmanaged tool in VSCode must be preserved"
+    );
 
     // 3. Test Antigravity preserves unmanaged server
     let mut tmp_ag = NamedTempFile::new().unwrap();
@@ -191,7 +214,10 @@ fn test_safe_mode_unmanaged_server_preservation() {
     ag_target.sync(&config, false).unwrap();
 
     let ag_updated = std::fs::read_to_string(tmp_ag.path()).unwrap();
-    assert!(ag_updated.contains("\"local-ag-tool\""), "Unmanaged tool in Antigravity must be preserved");
+    assert!(
+        ag_updated.contains("\"local-ag-tool\""),
+        "Unmanaged tool in Antigravity must be preserved"
+    );
 }
 
 #[test]
@@ -232,30 +258,49 @@ fn test_opencode_target_generation_and_safe_mode() {
     let doc: serde_json::Value = serde_json::from_str(&updated).unwrap();
 
     // Verify $schema preserved
-    assert_eq!(doc.get("$schema").unwrap().as_str().unwrap(), "https://opencode.ai/config.json");
+    assert_eq!(
+        doc.get("$schema").unwrap().as_str().unwrap(),
+        "https://opencode.ai/config.json"
+    );
 
     let mcp = doc.get("mcp").unwrap().as_object().unwrap();
 
     // Safe mode: local-only preserved
     assert!(mcp.contains_key("local-only"));
     let local_only = mcp.get("local-only").unwrap();
-    assert_eq!(local_only.get("enabled").unwrap().as_bool().unwrap(), false);
+    assert!(!local_only.get("enabled").unwrap().as_bool().unwrap());
 
     // Stdio tool formatted correctly
     let stdio = mcp.get("stdio-tool").unwrap();
     assert_eq!(stdio.get("type").unwrap().as_str().unwrap(), "local");
     assert_eq!(
         stdio.get("command").unwrap().as_array().unwrap(),
-        &vec![serde_json::Value::String("npx".into()), serde_json::Value::String("-y".into()), serde_json::Value::String("pkg".into())]
+        &vec![
+            serde_json::Value::String("npx".into()),
+            serde_json::Value::String("-y".into()),
+            serde_json::Value::String("pkg".into())
+        ]
     );
-    assert_eq!(stdio.get("environment").unwrap().get("FOO").unwrap().as_str().unwrap(), "bar");
-    assert_eq!(stdio.get("enabled").unwrap().as_bool().unwrap(), true);
+    assert_eq!(
+        stdio
+            .get("environment")
+            .unwrap()
+            .get("FOO")
+            .unwrap()
+            .as_str()
+            .unwrap(),
+        "bar"
+    );
+    assert!(stdio.get("enabled").unwrap().as_bool().unwrap());
 
     // HTTP tool formatted correctly
     let http = mcp.get("http-tool").unwrap();
     assert_eq!(http.get("type").unwrap().as_str().unwrap(), "remote");
-    assert_eq!(http.get("url").unwrap().as_str().unwrap(), "https://api.example.com/mcp");
-    assert_eq!(http.get("enabled").unwrap().as_bool().unwrap(), true);
+    assert_eq!(
+        http.get("url").unwrap().as_str().unwrap(),
+        "https://api.example.com/mcp"
+    );
+    assert!(http.get("enabled").unwrap().as_bool().unwrap());
 }
 
 #[test]
@@ -325,7 +370,12 @@ trust_level = "trusted"
     let disabled_srv = &mcp["disabled-srv"];
     assert_eq!(disabled_srv["enabled"].as_bool(), Some(false));
     assert_eq!(
-        disabled_srv["args"].as_array().unwrap().get(1).unwrap().as_str(),
+        disabled_srv["args"]
+            .as_array()
+            .unwrap()
+            .get(1)
+            .unwrap()
+            .as_str(),
         Some("updated-disabled-pkg")
     );
 
@@ -343,4 +393,3 @@ trust_level = "trusted"
         Some("secret123")
     );
 }
-

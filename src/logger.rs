@@ -55,7 +55,50 @@ impl Logger {
         }
         #[cfg(not(unix))]
         {
-            format!("unix:{}", now)
+            let sec = now % 60;
+            let min = (now / 60) % 60;
+            let hour = (now / 3600) % 24;
+            let mut days = (now / 86400) as i64;
+            let mut year = 1970;
+            loop {
+                let leap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+                let days_in_year = if leap { 366 } else { 365 };
+                if days >= days_in_year {
+                    days -= days_in_year;
+                    year += 1;
+                } else {
+                    break;
+                }
+            }
+            let leap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+            let days_in_months = [
+                31,
+                if leap { 29 } else { 28 },
+                31,
+                30,
+                31,
+                30,
+                31,
+                31,
+                30,
+                31,
+                30,
+                31,
+            ];
+            let mut month = 1;
+            for dim in days_in_months {
+                if days >= dim {
+                    days -= dim;
+                    month += 1;
+                } else {
+                    break;
+                }
+            }
+            let day = days + 1;
+            format!(
+                "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+                year, month, day, hour, min, sec
+            )
         }
     }
 

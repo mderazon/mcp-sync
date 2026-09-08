@@ -1,11 +1,11 @@
+use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use serde_json::{Map, Value};
 
+use super::Target;
 use crate::config::CanonicalConfig;
 use crate::fs_utils::atomic_write;
-use super::Target;
 
 pub struct OpenCodeTarget {
     path: PathBuf,
@@ -36,7 +36,10 @@ impl OpenCodeTarget {
             && let Some(servers) = v.get("mcp").and_then(|m| m.as_object())
         {
             for (name, s_val) in servers {
-                let enabled = s_val.get("enabled").and_then(|e| e.as_bool()).unwrap_or(true);
+                let enabled = s_val
+                    .get("enabled")
+                    .and_then(|e| e.as_bool())
+                    .unwrap_or(true);
                 states.insert(name.clone(), enabled);
                 servers_map.insert(name.clone(), s_val.clone());
             }
@@ -66,10 +69,16 @@ impl OpenCodeTarget {
                 obj.insert("type".to_string(), Value::String("remote".to_string()));
                 obj.insert("url".to_string(), Value::String(url.to_string()));
                 if let Some(headers) = server.get_headers() {
-                    obj.insert("headers".to_string(), serde_json::to_value(headers).unwrap());
+                    obj.insert(
+                        "headers".to_string(),
+                        serde_json::to_value(headers).unwrap(),
+                    );
                 }
                 if let Some(ref env) = server.env {
-                    obj.insert("environment".to_string(), serde_json::to_value(env).unwrap());
+                    obj.insert(
+                        "environment".to_string(),
+                        serde_json::to_value(env).unwrap(),
+                    );
                 }
             } else {
                 obj.insert("type".to_string(), Value::String("local".to_string()));
@@ -88,7 +97,10 @@ impl OpenCodeTarget {
 
                 // OpenCode uses "environment" key
                 if let Some(ref env) = server.env {
-                    obj.insert("environment".to_string(), serde_json::to_value(env).unwrap());
+                    obj.insert(
+                        "environment".to_string(),
+                        serde_json::to_value(env).unwrap(),
+                    );
                 }
             }
 

@@ -65,7 +65,13 @@ fn test_parse_settings_and_inputs() {
     let s = config.servers.get("with-settings").unwrap();
     assert!(s.settings.is_some());
     assert_eq!(
-        s.settings.as_ref().unwrap().get("api_key").unwrap().as_str().unwrap(),
+        s.settings
+            .as_ref()
+            .unwrap()
+            .get("api_key")
+            .unwrap()
+            .as_str()
+            .unwrap(),
         "secret-123"
     );
     assert!(config.inputs.is_some());

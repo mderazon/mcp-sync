@@ -28,10 +28,7 @@ impl CliArgs {
         let mut log_path = None;
         let mut quiet = false;
 
-        let valid_names: Vec<&'static str> = available_targets()
-            .iter()
-            .map(|t| t.name())
-            .collect();
+        let valid_names: Vec<&'static str> = available_targets().iter().map(|t| t.name()).collect();
 
         while let Some(arg) = args.next() {
             match arg.as_str() {
@@ -69,7 +66,10 @@ impl CliArgs {
                     exit(0);
                 }
                 unknown => {
-                    return Err(format!("Unknown argument '{}'. Use --help for usage.", unknown));
+                    return Err(format!(
+                        "Unknown argument '{}'. Use --help for usage.",
+                        unknown
+                    ));
                 }
             }
         }

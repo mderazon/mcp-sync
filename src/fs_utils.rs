@@ -32,7 +32,13 @@ pub fn atomic_write(dest_path: &Path, contents: &str) -> io::Result<()> {
         f.sync_all()?;
     }
 
-    // Atomic replace on Unix
+    // Atomic replace on Unix; handle existing file replace on Windows
+    #[cfg(windows)]
+    {
+        if dest_path.exists() {
+            let _ = fs::remove_file(dest_path);
+        }
+    }
     if let Err(err) = fs::rename(&temp_path, dest_path) {
         let _ = fs::remove_file(&temp_path);
         return Err(err);

@@ -4,10 +4,12 @@ pub mod logger;
 pub mod targets;
 pub mod watcher;
 
-pub use config::{load_canonical, parse_canonical_str, resolve_canonical_path, CanonicalConfig, ServerDefinition};
+pub use config::{
+    CanonicalConfig, ServerDefinition, load_canonical, parse_canonical_str, resolve_canonical_path,
+};
 pub use logger::Logger;
 pub use targets::{
-    available_targets, sync_all, AntigravityTarget, CodexTarget, OpenCodeTarget, Target,
-    VSCodeTarget, ZedTarget,
+    AntigravityTarget, CodexTarget, OpenCodeTarget, Target, VSCodeTarget, ZedTarget,
+    available_targets, sync_all,
 };
 pub use watcher::watch_and_sync;

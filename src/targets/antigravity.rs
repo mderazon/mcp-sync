@@ -1,7 +1,7 @@
+use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use serde_json::{Map, Value};
 
 use crate::config::CanonicalConfig;
 use crate::fs_utils::atomic_write;

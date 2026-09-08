@@ -1,7 +1,7 @@
+use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::Path;
 use std::sync::mpsc::channel;
 use std::time::{Duration, Instant};
-use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 
 use crate::config::load_canonical;
 use crate::logger::Logger;
@@ -13,9 +13,12 @@ pub fn watch_and_sync(
     dry_run: bool,
     logger: &Logger,
 ) -> Result<(), String> {
-    let watch_dir = canonical_path
-        .parent()
-        .ok_or_else(|| format!("Cannot determine parent directory of {}", canonical_path.display()))?;
+    let watch_dir = canonical_path.parent().ok_or_else(|| {
+        format!(
+            "Cannot determine parent directory of {}",
+            canonical_path.display()
+        )
+    })?;
 
     let canonical_file_name = canonical_path
         .file_name()
@@ -73,7 +76,9 @@ pub fn watch_and_sync(
         match rx.recv_timeout(timeout) {
             Ok(event) => {
                 let affects_canonical = event.paths.iter().any(|p| {
-                    p.file_name().map(|n| n == canonical_file_name).unwrap_or(false)
+                    p.file_name()
+                        .map(|n| n == canonical_file_name)
+                        .unwrap_or(false)
                 });
 
                 if affects_canonical {
