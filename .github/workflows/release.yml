@@ -60,11 +60,32 @@ jobs:
             LICENSE README.md
           powershell -Command "Get-FileHash -Algorithm SHA256 '${{ matrix.asset_name }}' | ForEach-Object { \$_.Hash.ToLower() + '  ${{ matrix.asset_name }}' }" > "${{ matrix.asset_name }}.sha256"
 
-      - name: Upload Release Artifacts
-        uses: softprops/action-gh-release@v2
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
         with:
-          files: |
+          name: release-${{ matrix.target }}
+          path: |
             ${{ matrix.asset_name }}
             ${{ matrix.asset_name }}.sha256
+
+  publish:
+    name: Publish GitHub Release
+    needs: [build-release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: dist
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
