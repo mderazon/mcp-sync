@@ -113,10 +113,14 @@ impl VSCodeTarget {
             return Ok(format!("[vscode] Would write {}", self.path.display()));
         }
 
-        atomic_write(&self.path, &formatted)
+        let updated = atomic_write(&self.path, &formatted)
             .map_err(|e| format!("Failed to write {}: {}", self.path.display(), e))?;
 
-        Ok(format!("[vscode] Updated {}", self.path.display()))
+        if updated {
+            Ok(format!("[vscode] Updated {}", self.path.display()))
+        } else {
+            Ok(format!("[vscode] Unchanged {}", self.path.display()))
+        }
     }
 }
 

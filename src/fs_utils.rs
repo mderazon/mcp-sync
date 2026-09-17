@@ -6,7 +6,15 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Atomically write contents to `dest_path` by first writing to a temporary file
 /// in the same directory and renaming it into place.
-pub fn atomic_write(dest_path: &Path, contents: &str) -> io::Result<()> {
+pub fn atomic_write(dest_path: &Path, contents: &str) -> io::Result<bool> {
+    if dest_path.exists() {
+        if let Ok(existing) = fs::read_to_string(dest_path) {
+            if existing == contents {
+                return Ok(false);
+            }
+        }
+    }
+
     if let Some(parent) = dest_path.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -44,5 +52,5 @@ pub fn atomic_write(dest_path: &Path, contents: &str) -> io::Result<()> {
         return Err(err);
     }
 
-    Ok(())
+    Ok(true)
 }

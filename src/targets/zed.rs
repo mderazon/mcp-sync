@@ -320,10 +320,14 @@ impl ZedTarget {
             return Ok(format!("[zed] Would update {}", self.path.display()));
         }
 
-        atomic_write(&self.path, &new_content)
+        let updated = atomic_write(&self.path, &new_content)
             .map_err(|e| format!("Failed to write {}: {}", self.path.display(), e))?;
 
-        Ok(format!("[zed] Updated {}", self.path.display()))
+        if updated {
+            Ok(format!("[zed] Updated {}", self.path.display()))
+        } else {
+            Ok(format!("[zed] Unchanged {}", self.path.display()))
+        }
     }
 }
 

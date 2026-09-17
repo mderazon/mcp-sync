@@ -48,14 +48,23 @@ pub fn watch_and_sync(
 
     let debounce_duration = Duration::from_millis(250);
     let mut last_event_time: Option<Instant> = None;
+    let mut last_canonical_content: Option<String> = std::fs::read_to_string(canonical_path).ok();
 
     loop {
         // If we have a pending event, wait with timeout for debounce
         let timeout = if let Some(last) = last_event_time {
             let elapsed = last.elapsed();
             if elapsed >= debounce_duration {
-                // Debounce period expired, trigger sync
+                // Debounce period expired, verify canonical config actually changed
                 last_event_time = None;
+
+                let current_content = std::fs::read_to_string(canonical_path).ok();
+                if current_content.is_some() && current_content == last_canonical_content {
+                    // Non-mutating access or identical content: skip syncing
+                    continue;
+                }
+                last_canonical_content = current_content;
+
                 logger.info("Change detected in canonical config, re-syncing...");
                 match load_canonical(canonical_path) {
                     Ok(config) => {
@@ -75,6 +84,11 @@ pub fn watch_and_sync(
 
         match rx.recv_timeout(timeout) {
             Ok(event) => {
+                // Ignore non-mutating access events (reads, opens, closes without write)
+                if event.kind.is_access() {
+                    continue;
+                }
+
                 let affects_canonical = event.paths.iter().any(|p| {
                     p.file_name()
                         .map(|n| n == canonical_file_name)

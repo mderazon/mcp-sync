@@ -150,9 +150,13 @@ impl Target for OpenCodeTarget {
             return Ok(format!("[opencode] Would write {}", self.path.display()));
         }
 
-        atomic_write(&self.path, &formatted)
+        let updated = atomic_write(&self.path, &formatted)
             .map_err(|e| format!("Failed to write {}: {}", self.path.display(), e))?;
 
-        Ok(format!("[opencode] Updated {}", self.path.display()))
+        if updated {
+            Ok(format!("[opencode] Updated {}", self.path.display()))
+        } else {
+            Ok(format!("[opencode] Unchanged {}", self.path.display()))
+        }
     }
 }

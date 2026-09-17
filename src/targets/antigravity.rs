@@ -111,10 +111,14 @@ impl AntigravityTarget {
             return Ok(format!("[antigravity] Would write {}", self.path.display()));
         }
 
-        atomic_write(&self.path, &formatted)
+        let updated = atomic_write(&self.path, &formatted)
             .map_err(|e| format!("Failed to write {}: {}", self.path.display(), e))?;
 
-        Ok(format!("[antigravity] Updated {}", self.path.display()))
+        if updated {
+            Ok(format!("[antigravity] Updated {}", self.path.display()))
+        } else {
+            Ok(format!("[antigravity] Unchanged {}", self.path.display()))
+        }
     }
 }
 
