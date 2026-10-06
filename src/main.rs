@@ -54,7 +54,7 @@ struct Cli {
     command: Option<Commands>,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, Clone, Copy)]
 enum Commands {
     /// Check for updates and self-update to latest GitHub release
     Update,
@@ -75,11 +75,13 @@ fn main() {
     let cli = Cli::parse();
 
     // Handle completions first if requested
-    if let Some(shell) = cli.completions {
-        print_completions(shell);
-        exit(0);
-    }
-    if let Some(Commands::Completions { shell }) = cli.command {
+    let shell = match (cli.completions, cli.command) {
+        (Some(s), _) => Some(s),
+        (_, Some(Commands::Completions { shell })) => Some(shell),
+        _ => None,
+    };
+
+    if let Some(shell) = shell {
         print_completions(shell);
         exit(0);
     }

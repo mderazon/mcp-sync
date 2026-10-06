@@ -76,7 +76,13 @@ fn test_antigravity_disabled_state_preservation() {
     );
     assert!(s_new.get("disabled").is_none());
     assert_eq!(
-        s_new.get("headers").unwrap().get("Authorization").unwrap().as_str().unwrap(),
+        s_new
+            .get("headers")
+            .unwrap()
+            .get("Authorization")
+            .unwrap()
+            .as_str()
+            .unwrap(),
         "Bearer test123"
     );
 }
