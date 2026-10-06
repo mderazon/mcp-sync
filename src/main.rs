@@ -32,6 +32,15 @@ impl CliArgs {
 
         while let Some(arg) = args.next() {
             match arg.as_str() {
+                "--update" | "-u" | "update" => {
+                    match mcp_sync::updater::update() {
+                        Ok(_) => exit(0),
+                        Err(e) => {
+                            eprintln!("Update error: {}", e);
+                            exit(1);
+                        }
+                    }
+                }
                 "--watch" | "-w" => watch = true,
                 "--dry-run" | "-n" => dry_run = true,
                 "--quiet" | "-q" => quiet = true,
@@ -105,6 +114,7 @@ USAGE:
     mcp-sync [OPTIONS]
 
 OPTIONS:
+    -u, --update             Check for updates and self-update to latest GitHub release
     -w, --watch              Watch canonical config for changes and sync automatically
     -n, --dry-run            Show what would be modified without writing files
     -t, --target <TARGETS>   Comma-separated targets: zed, vscode, antigravity, opencode, codex (default: all)

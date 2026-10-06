@@ -2,6 +2,7 @@ pub mod config;
 pub mod fs_utils;
 pub mod logger;
 pub mod targets;
+pub mod updater;
 pub mod watcher;
 
 pub use config::{
