@@ -240,16 +240,21 @@ impl ZedTarget {
         for (name, server) in &config.servers {
             let mut obj = Map::new();
 
-            // Smart merge: preserve existing enabled state, default true
-            let enabled = existing_states
-                .get(name)
-                .copied()
-                .or(server.enabled)
+            // Smart merge: canonical explicit enabled takes precedence, otherwise preserve existing state
+            let enabled = server
+                .enabled
+                .or_else(|| existing_states.get(name).copied())
                 .unwrap_or(true);
             obj.insert("enabled".to_string(), Value::Bool(enabled));
 
             if let Some(url) = server.get_url() {
                 obj.insert("url".to_string(), Value::String(url.to_string()));
+                if let Some(headers) = server.get_headers() {
+                    obj.insert(
+                        "headers".to_string(),
+                        serde_json::to_value(headers).unwrap(),
+                    );
+                }
             } else {
                 if let Some(ref cmd) = server.command {
                     obj.insert("command".to_string(), Value::String(cmd.clone()));

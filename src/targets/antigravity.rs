@@ -57,6 +57,12 @@ impl AntigravityTarget {
 
             if let Some(url) = server.get_url() {
                 obj.insert("serverUrl".to_string(), Value::String(url.to_string()));
+                if let Some(headers) = server.get_headers() {
+                    obj.insert(
+                        "headers".to_string(),
+                        serde_json::to_value(headers).unwrap(),
+                    );
+                }
             } else {
                 if let Some(ref cmd) = server.command {
                     obj.insert("command".to_string(), Value::String(cmd.clone()));
@@ -74,11 +80,11 @@ impl AntigravityTarget {
                 }
             }
 
-            // Smart merge: preserve existing disabled state in Antigravity
-            let is_disabled = existing_disabled
-                .get(name)
-                .copied()
-                .or_else(|| server.enabled.map(|e| !e))
+            // Smart merge: canonical explicit enabled takes precedence, otherwise preserve existing state
+            let is_disabled = server
+                .enabled
+                .map(|e| !e)
+                .or_else(|| existing_disabled.get(name).copied())
                 .unwrap_or(false);
 
             if is_disabled {

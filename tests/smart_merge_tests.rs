@@ -36,7 +36,10 @@ fn test_antigravity_disabled_state_preservation() {
                 "args": ["server.py"]
             },
             "server-new": {
-                "url": "https://remote.example.com/sse"
+                "url": "https://remote.example.com/sse",
+                "headers": {
+                    "Authorization": "Bearer test123"
+                }
             }
         }
     }"#;
@@ -65,13 +68,17 @@ fn test_antigravity_disabled_state_preservation() {
     let s_active = servers.get("server-active").unwrap();
     assert!(s_active.get("disabled").is_none());
 
-    // server-new has serverUrl
+    // server-new has serverUrl and headers
     let s_new = servers.get("server-new").unwrap();
     assert_eq!(
         s_new.get("serverUrl").unwrap().as_str().unwrap(),
         "https://remote.example.com/sse"
     );
     assert!(s_new.get("disabled").is_none());
+    assert_eq!(
+        s_new.get("headers").unwrap().get("Authorization").unwrap().as_str().unwrap(),
+        "Bearer test123"
+    );
 }
 
 #[test]

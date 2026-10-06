@@ -57,11 +57,10 @@ impl OpenCodeTarget {
         for (name, server) in &config.servers {
             let mut obj = Map::new();
 
-            // Smart merge: preserve existing enabled state, default true
-            let enabled = existing_states
-                .get(name)
-                .copied()
-                .or(server.enabled)
+            // Smart merge: canonical explicit enabled takes precedence, otherwise preserve existing state
+            let enabled = server
+                .enabled
+                .or_else(|| existing_states.get(name).copied())
                 .unwrap_or(true);
             obj.insert("enabled".to_string(), Value::Bool(enabled));
 

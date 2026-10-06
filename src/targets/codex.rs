@@ -64,11 +64,10 @@ impl CodexTarget {
             .ok_or_else(|| "mcp_servers in config.toml is not a table".to_string())?;
 
         for (name, server) in &config.servers {
-            // Smart merge: preserve existing enabled state, default true
-            let enabled = existing_states
-                .get(name)
-                .copied()
-                .or(server.enabled)
+            // Smart merge: canonical explicit enabled takes precedence, otherwise preserve existing state
+            let enabled = server
+                .enabled
+                .or_else(|| existing_states.get(name).copied())
                 .unwrap_or(true);
 
             if !mcp_servers.contains_key(name) {
@@ -143,10 +142,14 @@ impl CodexTarget {
             return Ok(format!("[codex] Would update {}", self.path.display()));
         }
 
-        atomic_write(&self.path, &formatted)
+        let updated = atomic_write(&self.path, &formatted)
             .map_err(|e| format!("Failed to write {}: {}", self.path.display(), e))?;
 
-        Ok(format!("[codex] Updated {}", self.path.display()))
+        if updated {
+            Ok(format!("[codex] Updated {}", self.path.display()))
+        } else {
+            Ok(format!("[codex] Unchanged {}", self.path.display()))
+        }
     }
 }
 

@@ -95,7 +95,14 @@ pub fn watch_and_sync(
                         .unwrap_or(false)
                 });
 
-                if affects_canonical {
+                let is_mutation = matches!(
+                    event.kind,
+                    notify::EventKind::Modify(_)
+                        | notify::EventKind::Create(_)
+                        | notify::EventKind::Remove(_)
+                );
+
+                if affects_canonical && is_mutation {
                     last_event_time = Some(Instant::now());
                 }
             }
