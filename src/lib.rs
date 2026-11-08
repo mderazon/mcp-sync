@@ -10,7 +10,7 @@ pub use config::{
 };
 pub use logger::Logger;
 pub use targets::{
-    AntigravityTarget, CodexTarget, OpenCodeTarget, Target, VSCodeTarget, ZedTarget,
+    AntigravityTarget, CodexTarget, OpenCodeTarget, PiTarget, Target, VSCodeTarget, ZedTarget,
     available_targets, sync_all,
 };
 pub use watcher::watch_and_sync;

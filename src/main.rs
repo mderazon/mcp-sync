@@ -15,7 +15,7 @@ use mcp_sync::watcher::watch_and_sync;
     name = "mcp-sync",
     version,
     about = "Synchronize MCP server configurations from a single source of truth across AI coding clients.",
-    after_help = "TARGETS:\n    zed          -> ~/.config/zed/settings.json (context_servers)\n    vscode       -> ~/.config/Code/User/mcp.json (servers)\n    antigravity  -> ~/.gemini/config/mcp_config.json (mcpServers)\n    opencode     -> ~/.config/opencode/opencode.json (mcp)\n    codex        -> ~/.codex/config.toml (mcp_servers)\n"
+    after_help = "TARGETS:\n    zed          -> ~/.config/zed/settings.json (context_servers)\n    vscode       -> ~/.config/Code/User/mcp.json (servers)\n    antigravity  -> ~/.gemini/config/mcp_config.json (mcpServers)\n    opencode     -> ~/.config/opencode/opencode.json (mcp)\n    codex        -> ~/.codex/config.toml (mcp_servers)\n    pi           -> ~/.pi/agent/mcp.json (mcpServers)\n"
 )]
 struct Cli {
     /// Watch canonical config for changes and sync automatically
@@ -34,7 +34,7 @@ struct Cli {
     #[arg(short = 'u', long = "update")]
     update: bool,
 
-    /// Comma-separated targets: zed, vscode, antigravity, opencode, codex (default: all)
+    /// Comma-separated targets: zed, vscode, antigravity, opencode, codex, pi (default: all)
     #[arg(short = 't', long = "target", value_delimiter = ',')]
     target: Vec<String>,
 

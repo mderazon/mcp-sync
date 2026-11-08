@@ -1,6 +1,7 @@
 pub mod antigravity;
 pub mod codex;
 pub mod opencode;
+pub mod pi;
 pub mod vscode;
 pub mod zed;
 
@@ -10,12 +11,13 @@ use crate::logger::Logger;
 pub use antigravity::AntigravityTarget;
 pub use codex::CodexTarget;
 pub use opencode::OpenCodeTarget;
+pub use pi::PiTarget;
 pub use vscode::VSCodeTarget;
 pub use zed::ZedTarget;
 
 /// Pluggable Target trait that all agent targets implement.
 pub trait Target: Send + Sync {
-    /// Identifier name for the target (e.g. "zed", "vscode", "antigravity", "opencode", "codex")
+    /// Identifier name for the target (e.g. "zed", "vscode", "antigravity", "opencode", "codex", "pi")
     fn name(&self) -> &'static str;
 
     /// Execute synchronization for this target
@@ -31,6 +33,7 @@ pub fn available_targets() -> Vec<Box<dyn Target>> {
         Box::new(AntigravityTarget::new(None)),
         Box::new(OpenCodeTarget::new(None)),
         Box::new(CodexTarget::new(None)),
+        Box::new(PiTarget::new(None)),
     ]
 }
 
